@@ -14,6 +14,83 @@
             -webkit-tap-highlight-color: transparent;
         }
         
+        /* 音乐播放弹窗样式 */
+        .music-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            width: 90%;
+            max-width: 350px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            display: none;
+            text-align: center;
+        }
+        
+        .music-popup.show {
+            display: block;
+            animation: popupSlideIn 0.5s ease-out;
+        }
+        
+        @keyframes popupSlideIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+        
+        .popup-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 999;
+            display: none;
+        }
+        
+        .popup-backdrop.show {
+            display: block;
+        }
+        
+        .popup-title {
+            color: #1a1a2e;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            font-family: 'Orbitron', sans-serif;
+        }
+        
+        .popup-message {
+            color: #555;
+            font-size: 16px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        
+
+        
+        .popup-button {
+            background: linear-gradient(135deg, #7b68ee, #4facfe);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        
         body {
             font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
             background: linear-gradient(135deg, #1a1a2e, #16213e);
@@ -389,9 +466,7 @@
             <div id="particles-js"></div>
         </div>
         
-        <!-- 背景音乐 -->
-        <audio id="birthday-music" loop preload="auto" autoplay>
-            <source src="data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaWdTb3VuZEJhbmsuY29tIC8gTGFTb25vdGhlcXVlLm9yZwBURU5DAAAAHQAAA1N3aXRjaCBQbHVzIMKpIE5DSCBTb2Z0d2FyZQBUSVQyAAAABgAAAzIyMzUAVFNTRQAAAA8AAANMYXZmNTcuNDUuMTAwAAAAAAAAAAAAAAD/80DEAAAAA0gAAAAATEFNRTMuMTAwVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQsRbAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQMSkAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV"></audio>
+        <!-- 背景音乐由iframe播放器提供 -->
         
         <div class="container">
         <h1 class="title animate">生日快乐</h1>
@@ -417,12 +492,21 @@
         </div>
         
         <div class="actions animate delay-3">
-            <button class="btn btn-primary" onclick="showConfetti()">点击祝福</button>
+            <button class="btn btn-primary">点击祝福</button>
         </div>
         
         <div class="footer animate delay-3">
             <p>爱你的家人 ❤️</p>
         </div>
+    </div>
+    
+    <!-- 音乐播放弹窗 -->
+    <div class="popup-backdrop" id="musicPopupBackdrop"></div>
+    <div class="music-popup" id="musicPopup">
+        <h2 class="popup-title">生日快乐！🎵</h2>
+        <p class="popup-message">亲爱的哥哥，点击下方按钮关闭弹窗后，可在页面中找到音乐播放器欣赏生日祝福音乐！</p>
+        <p style="color: #666; font-size: 14px; margin: 10px 0;">Tips：页面中的播放器可直接点击播放</p>
+        <button class="popup-button" id="playMusicBtn">关闭</button>
     </div>
     
     <script>
@@ -453,61 +537,77 @@
         
 
         
-        // 播放背景音乐函数
-        function playBackgroundMusic() {
-            const music = document.getElementById('birthday-music');
+        // 背景音乐由iframe播放器提供，已设置自动播放
+        
+        // 音乐弹窗相关代码
+        window.addEventListener('DOMContentLoaded', function() {
+            // 初始化应用
+            initApp();
             
-            if (!music) {
-                console.log('音频元素未找到');
-                return;
-            }
+            // 触摸事件优化
+            initTouchEvents();
+        
+            // 防止双击缩放
+            document.addEventListener('dblclick', function(e) {
+                e.preventDefault();
+            }, { passive: false });
             
-            // 音量设置为较低，避免突然的大声
-            music.volume = 0.3;
+            // 显示音乐播放弹窗
+            setTimeout(function() {
+                var popup = document.getElementById('musicPopup');
+                var backdrop = document.getElementById('musicPopupBackdrop');
+                if (popup && backdrop) {
+                    popup.classList.add('show');
+                    backdrop.classList.add('show');
+                }
+            }, 1000);
             
-            // 多次尝试播放策略
-            const attemptPlay = () => {
-                music.play().then(() => {
-                    console.log('背景音乐播放成功');
-                    // 移除事件监听器，避免重复触发
-                    document.removeEventListener('click', attemptPlay);
-                    document.removeEventListener('touchstart', attemptPlay);
-                    document.removeEventListener('keydown', attemptPlay);
-                }).catch(error => {
-                    console.log('背景音乐播放尝试失败:', error.message);
-                    // 不抛出错误，继续尝试
-                });
+            // 绑定播放按钮事件
+            document.getElementById('playMusicBtn').onclick = function() {
+                // 关闭弹窗
+                document.getElementById('musicPopup').classList.remove('show');
+                document.getElementById('musicPopupBackdrop').classList.remove('show');
             };
             
-            // 立即尝试播放
-            attemptPlay();
+            // 绑定背景点击事件
+            document.getElementById('musicPopupBackdrop').onclick = function(e) {
+                if (e.target === this) {
+                    document.getElementById('musicPopup').classList.remove('show');
+                    this.classList.remove('show');
+                }
+            };
             
-            // 添加多种用户交互事件监听器作为后备方案
-            document.addEventListener('click', attemptPlay);
-            document.addEventListener('touchstart', attemptPlay);
-            document.addEventListener('keydown', attemptPlay);
-        }
-        
-        document.addEventListener('DOMContentLoaded', function() {
-        // 初始化功能
-        initApp();
-        
-        // 触摸事件优化
-        initTouchEvents();
-    
-        // 防止双击缩放
-        document.addEventListener('dblclick', function(e) {
-            e.preventDefault();
-        }, { passive: false });
-    });
+            // 手机端触摸屏幕自动播放iframe音乐功能
+            function initMobileMusicPlayback() {
+                var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                if (!isMobile) return;
+                
+                var musicIframe = document.querySelector('.music-player iframe');
+                if (!musicIframe) return;
+                
+                function handleTouchStart() {
+                    var src = musicIframe.src;
+                    if (src.indexOf('auto=1') === -1) {
+                        if (src.indexOf('?') === -1) {
+                            src += '?auto=1';
+                        } else {
+                            src += '&auto=1';
+                        }
+                        musicIframe.src = src;
+                    }
+                    document.removeEventListener('touchstart', handleTouchStart, { passive: true });
+                }
+                
+                document.addEventListener('touchstart', handleTouchStart, { passive: true });
+            }
+            
+            initMobileMusicPlayback();
+        });
         
         // 应用初始化函数
         function initApp() {
             // 启动数字时钟更新
             startDigitalClock();
-            
-            // 初始化背景音乐（作为后备方案）
-            playBackgroundMusic();
             
             // 初始化粒子效果（使用性能优化方式）
             initParticles();
@@ -563,8 +663,6 @@
                 });
             }
         }
-        
-        // 音乐播放逻辑已在DOMContentLoaded内实现
         
         // 创建粒子效果
         function createParticles() {
